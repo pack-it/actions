@@ -1,0 +1,16 @@
+{
+    "name": "packit-actions",
+    "description": "The GitHub Actions of Packit",
+    "repository": "https://github.com/pack-it/actions.git",
+    "author": "The Packit Team",
+    "dependencies": {
+        "@actions/core": "^3.0.1",
+        "@actions/tool-cache": "^4.0.0"
+    },
+    "devDependencies": {
+        "@tsconfig/node-ts": "^23.6.4",
+        "@tsconfig/node24": "^24.0.5",
+        "@types/node": "^26.2.0",
+        "typescript": "^7.0.2"
+    }
+}

@@ -1,0 +1,15 @@
+name: Setup Packit
+description: Sets up a full Packit installation
+
+inputs:
+  version:
+    description: The version of Packit to install
+    required: true
+  revision:
+    description: The revision version of Packit to install
+    required: false
+    default: 0
+
+runs:
+  using: node24
+  main: main.mts
