@@ -3,6 +3,8 @@ import * as tc from "@actions/tool-cache";
 import { exec } from "@actions/exec";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import { execFileSync } from "node:child_process";
 
 try {
     const version = core.getInput("version", { required: true });
@@ -16,12 +18,10 @@ try {
     core.info(`Packit installation prefix: ${packitPackagePrefix}`);
 
     // Create prefix and config directory
-    fs.mkdir(packitPackagePrefix, { recursive: true }, (error) => {
-        if (error) throw error;
-    });
-    fs.mkdir(configDir, { recursive: true }, (error) => {
-        if (error) throw error;
-    });
+    await createDirsPrivileged(packitPackagePrefix);
+    await createDirsPrivileged(configDir);
+    await setPermissions(prefix);
+    await setPermissions(configDir);
 
     // Download Packit
     const tarFilename = `packit@${version}-${revision}-${target}`;
@@ -32,13 +32,16 @@ try {
     
     // Rename extracted path to version, to ensure a correct installation path
     const packitInstallPrefix = path.join(packitPackagePrefix, version);
-    fs.rename(path.join(packitPackagePrefix, tarFilename), packitInstallPrefix, (error) => {
-        if (error) throw error;
-    });
+    moveDir(path.join(packitPackagePrefix, tarFilename), packitInstallPrefix);
+    await setPermissions(prefix);
 
-    // Initialize Packit
-    const packitBinaryPath = path.join(packitInstallPrefix, "bin", "packit");
-    await exec(packitBinaryPath, ["init"]);
+    core.info("Copied Packit files to the correct destination");
+
+    // Initialize Packit (run privileged on Unix)
+    const packitBinaryPath = path.join(packitInstallPrefix, "bin", `packit${getBinaryExtension()}`);
+    await execFileSync(packitBinaryPath, ["init"], {
+        stdio: "inherit",
+    });
 
     // Add Packit bin to path
     const packitBin = path.join(prefix, "bin");
@@ -109,5 +112,45 @@ function getConfigDirectory(): string {
             return "C:\\Program Files\\packit";
         default:
             throw new Error(`Platform ${process.platform} is not supported by Packit!`);
+    }
+}
+
+function getBinaryExtension(): string {
+    switch(process.platform) {
+        case "darwin":
+        case "linux":
+            return "";
+        case "win32":
+            return ".exe";
+        default:
+            throw new Error(`Platform ${process.platform} is not supported by Packit!`);
+    }
+}
+
+async function createDirsPrivileged(dir: string) {
+    if (fs.existsSync(dir)) return;
+
+    if (process.platform == "win32") {
+        await exec("mkdir", ["-p", dir]);
+    } else {
+        await exec("sudo", ["mkdir", "-p", dir]);
+    }
+}
+
+async function setPermissions(dir: string) {
+    if (process.platform == "win32") return;
+
+    await exec("sudo", ["chmod", "-R", "755", dir]);
+    await exec("sudo", ["chown", "-R", os.userInfo().uid.toString(), dir]);
+}
+
+function moveDir(source: string, destination: string) {
+    try {
+        fs.renameSync(source, destination);
+    } catch(error: any) {
+        if (error.code !== "EXDEV") throw error;
+
+        fs.cpSync(source, destination, { recursive: true });
+        fs.rmSync(source, { recursive: true });
     }
 }
