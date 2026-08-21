@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as tc from "@actions/tool-cache";
+import { exec } from "@actions/exec";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -8,21 +9,43 @@ try {
     const revision = core.getInput("revision");
     const target = getTarget();
     const prefix = getPrefix();
-    const packitInstallPrefix = path.join(prefix, "packages", "packit", version);
+    const configDir = getConfigDirectory();
+    const packitPackagePrefix = path.join(prefix, "packages", "packit");
     core.info(`Installing Packit version ${version} (revision ${revision}) for target ${target}`);
     core.info(`Packit prefix: ${prefix}`);
-    core.info(`Packit installation prefix: ${prefix}`);
+    core.info(`Packit installation prefix: ${packitPackagePrefix}`);
 
-    // Create prefix directory
-    fs.mkdir(packitInstallPrefix, { recursive: true }, (error) => {
+    // Create prefix and config directory
+    fs.mkdir(packitPackagePrefix, { recursive: true }, (error) => {
+        if (error) throw error;
+    });
+    fs.mkdir(configDir, { recursive: true }, (error) => {
         if (error) throw error;
     });
 
-    const packitUrl = `https://github.com/pack-it/packit/releases/download/${version}/packit@${version}-${revision}-${target}.tar.gz`
+    // Download Packit
+    const tarFilename = `packit@${version}-${revision}-${target}`;
+    const packitUrl = `https://github.com/pack-it/packit/releases/download/${version}/${tarFilename}.tar.gz`
     core.info(`Downloading Packit from ${packitUrl}`);
-
     const tarballPath = await tc.downloadTool(packitUrl);
-    await tc.extractTar(tarballPath, packitInstallPrefix);
+    await tc.extractTar(tarballPath, packitPackagePrefix);
+    
+    // Rename extracted path to version, to ensure a correct installation path
+    const packitInstallPrefix = path.join(packitPackagePrefix, version);
+    fs.rename(path.join(packitPackagePrefix, tarFilename), packitInstallPrefix, (error) => {
+        if (error) throw error;
+    });
+
+    // Initialize Packit
+    const packitBinaryPath = path.join(packitInstallPrefix, "bin", "packit");
+    await exec(packitBinaryPath, ["init"]);
+
+    // Add Packit bin to path
+    const packitBin = path.join(prefix, "bin");
+    core.addPath(packitBin);
+
+    // Test if pit is in path
+    await exec("pit", ["--version"]);
 } catch (error) {
     if (!Error.isError(error)) throw error
 
@@ -69,6 +92,19 @@ function getPrefix(): string {
         case "darwin":
         case "linux":
             return "/opt/packit";
+        case "win32":
+            return "C:\\Program Files\\packit";
+        default:
+            throw new Error(`Platform ${process.platform} is not supported by Packit!`);
+    }
+}
+
+function getConfigDirectory(): string {
+    switch(process.platform) {
+        case "darwin":
+            return "/Library/Application Support/packit";
+        case "linux":
+            return "/etc/packit";
         case "win32":
             return "C:\\Program Files\\packit";
         default:

@@ -1,6 +1,7 @@
 .vscode/
 .DS_Store
 
+/node_modules/.bin/
 /node_modules/@tsconfig/
 /node_modules/@types/
 /node_modules/typescript/
