@@ -1,0 +1,20 @@
+name: Detect changed packages
+description: Detects which packages were changed
+
+inputs:
+  token:
+    description: The GitHub token
+    required: true
+  pr:
+    description: The number of the PR to check the changed packages of
+    required: true
+  repo-owner:
+    description: The owner of the repository to check
+    required: false
+  repo-name:
+    description: The name of the repository to check
+    required: false
+
+runs:
+  using: node24
+  main: main.mts
