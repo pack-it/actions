@@ -14,6 +14,9 @@ inputs:
   repo-name:
     description: The name of the repository to check
     required: false
+outputs:
+  packages:
+    description: The list of package ids that have been changed, separated by a space
 
 runs:
   using: node24

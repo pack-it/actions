@@ -44,7 +44,9 @@ try {
             const packageName = versionMatches[2];
             const packageVersion = versionMatches[3];
 
-            changedPackages.add(`${packageName}@${packageVersion}`);
+            const packageId = `${packageName}@${packageVersion}`;
+            core.info(`Detected change in package ${packageId}`);
+            changedPackages.add(packageId);
             continue;
         }
 
@@ -83,7 +85,9 @@ try {
 
             // Add all versions to the list of changed packages
             for (const version of availableVersions) {
-                changedPackages.add(`${packageName}@${version}`);
+                const packageId = `${packageName}@${version}`;
+                core.info(`Detected change in package ${packageId}`);
+                changedPackages.add(packageId);
             }
             continue;
         }
@@ -92,9 +96,8 @@ try {
         core.info(`File ${file.filename} does not seem to be a metadata file.`);
     }
 
-    for (const pkg of changedPackages) {
-        console.log(pkg);
-    }
+    // Set the output
+    core.setOutput("packages", Array.from(changedPackages).join(" "));
 } catch (error) {
     if (!Error.isError(error)) throw error
 
