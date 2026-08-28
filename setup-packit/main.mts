@@ -5,10 +5,13 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
+import * as toml from "smol-toml";
 
 try {
     const version = core.getInput("version", { required: true });
     const revision = core.getInput("revision");
+    const repositoryUrl = core.getInput("repository-url");
+    const repositoryProvider = core.getInput("repository-provider");
     const target = getTarget();
     const prefix = getPrefix();
     const configDir = getConfigDirectory();
@@ -47,8 +50,27 @@ try {
     const packitBin = path.join(prefix, "bin");
     core.addPath(packitBin);
 
+    // If a repository is given, set it in the config
+    if (repositoryUrl !== "") {
+        const configPath = path.join(configDir, "Config.toml");
+        const configContent = fs.readFileSync(configPath, "utf-8");
+        let configToml = toml.parse(configContent);
+
+        configToml["repositories"] = {
+            repo: {
+                url: repositoryUrl,
+                provider: repositoryProvider,
+            }
+        };
+        configToml["repositories_rank"] = ["repo"];
+
+        const configString = toml.stringify(configToml);
+        fs.writeFileSync(configPath, configString);
+    }
+
     // Test if pit is in path
-    await exec("pit", ["--version"]);
+    await exec("pit", ["info"]);
+    await exec("pit", ["config", "repositories", "list"]);
 } catch (error) {
     if (!Error.isError(error)) throw error
 

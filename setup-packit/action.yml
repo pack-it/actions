@@ -9,6 +9,12 @@ inputs:
     description: The revision version of Packit to install
     required: false
     default: 0
+  repository-url:
+    description: The url of the metadata repository to set in the Packit config
+    required: false
+  repository-provider:
+    description: The provider of the metadata repository to set in the Packit config
+    required: false
 
 runs:
   using: node24
