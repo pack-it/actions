@@ -14,6 +14,10 @@ inputs:
   repo-name:
     description: The name of the repository to check
     required: false
+  filter-unsupported:
+    descritpion: True to filter the unsupported packages from the list (Requires Packit to be installed)
+    required: false
+    default: false
 outputs:
   packages:
     description: The list of package ids that have been changed, separated by a space

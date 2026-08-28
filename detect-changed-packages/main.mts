@@ -1,10 +1,12 @@
 import * as core from "@actions/core";
+import { getExecOutput } from "@actions/exec";
 import * as github from "@actions/github";
 import { parse as parseToml } from "smol-toml";
 
 try {
     const pr = core.getInput("pr", { required: true });
     const octokit = github.getOctokit(core.getInput("token", { required: true }));
+    const filterUnsupported = core.getBooleanInput("filter-unsupported");
 
     // Retrieve repo to check from inputs
     const currentRepo = github.context.repo;
@@ -32,7 +34,7 @@ try {
         pull_number: pr as unknown as number,
     });
 
-    let changedPackages = new Set();
+    let changedPackages: Set<string> = new Set();
 
     // Extract package ids from changed files
     const packageRegex = new RegExp("^([^\n]+\/)?packages\/([a-zA-Z0-9\-_]+)\/([^\n]+)");
@@ -96,10 +98,42 @@ try {
         core.info(`File ${file.filename} does not seem to be a metadata file.`);
     }
 
+    let packagesOutput = Array.from(changedPackages);
+
+    // Remove unsupported packages from the output list
+    if (filterUnsupported) {
+        const supportedPromises = packagesOutput.map(isSupported);
+        const supportedOutput = await Promise.all(supportedPromises);
+        packagesOutput = packagesOutput.filter((_, i) => supportedOutput[i]);
+    }
+
     // Set the output
-    core.setOutput("packages", Array.from(changedPackages).join(" "));
+    core.setOutput("packages", packagesOutput.join(" "));
 } catch (error) {
     if (!Error.isError(error)) throw error
 
     core.setFailed(error.message)
+}
+
+async function isSupported(packageId: string): Promise<boolean> {
+    const output = await getExecOutput("pit", ["search", packageId], {
+        silent: true,
+        ignoreReturnCode: true,
+    });
+    const stderr = output.stderr.split("\n");
+
+    let prefix = `ERROR: Package ${packageId} cannot be found: `;
+    for (const line of stderr) {
+        if (!line.startsWith(prefix)) continue;
+
+        const message = line.slice(prefix.length);
+        if (message === "cannot be found in any repository" || message.startsWith("the metadata cannot be parsed:")) {
+            continue;
+        }
+
+        core.info(`Package ${packageId} is not supported: ${message}`);
+        return false;
+    }
+
+    return true;
 }
