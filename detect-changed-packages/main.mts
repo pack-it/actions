@@ -7,6 +7,7 @@ try {
     const pr = core.getInput("pr", { required: true });
     const octokit = github.getOctokit(core.getInput("token", { required: true }));
     const filterUnsupported = core.getBooleanInput("filter-unsupported");
+    const outputJson = core.getBooleanInput("output-json");
 
     // Retrieve repo to check from inputs
     const currentRepo = github.context.repo;
@@ -98,17 +99,23 @@ try {
         core.info(`File ${file.filename} does not seem to be a metadata file.`);
     }
 
-    let packagesOutput = Array.from(changedPackages);
+    let packagesArr = Array.from(changedPackages);
 
     // Remove unsupported packages from the output list
     if (filterUnsupported) {
-        const supportedPromises = packagesOutput.map(isSupported);
+        const supportedPromises = packagesArr.map(isSupported);
         const supportedOutput = await Promise.all(supportedPromises);
-        packagesOutput = packagesOutput.filter((_, i) => supportedOutput[i]);
+        packagesArr = packagesArr.filter((_, i) => supportedOutput[i]);
+    }
+
+    // Convert output based on the `output-json` option
+    let packagesOutput = packagesArr.join(" ");
+    if (outputJson) {
+        packagesOutput = JSON.stringify(packagesArr);
     }
 
     // Set the output
-    core.setOutput("packages", packagesOutput.join(" "));
+    core.setOutput("packages", packagesOutput);
 } catch (error) {
     if (!Error.isError(error)) throw error
 

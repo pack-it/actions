@@ -15,7 +15,11 @@ inputs:
     description: The name of the repository to check
     required: false
   filter-unsupported:
-    descritpion: True to filter the unsupported packages from the list (Requires Packit to be installed)
+    description: True to filter the unsupported packages from the list (Requires Packit to be installed)
+    required: false
+    default: false
+  output-json:
+    description: True to output a json array instead of a space separated list
     required: false
     default: false
 outputs:
